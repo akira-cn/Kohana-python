@@ -24,8 +24,8 @@
 
      class Controller_My extends Controller{
          public function action_foo(){
-	     $obj = new Model_Logic_Sample("john");
-	     echo $obj->test();
-	     exit;
-	 }
+             $obj = new Model_Logic_Sample("john");
+             echo $obj->test();
+             exit;
+         }
      }
