@@ -2,6 +2,10 @@
 
 ## Usage: 
 
+### Run Server
+
+     python server.py start
+
 ### Loading module
 
      Kohana::register_modules(array(
