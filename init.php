@@ -2,7 +2,7 @@
 
 class Python_Env_Init extends Kohana{
 	/**
-	 * 改写auto_load方法以增加对python的支持
+	 * add auto_load to create php local classes associate to remove python classes
 	 */
 	public static function auto_load($class){
 		try{
@@ -10,7 +10,10 @@ class Python_Env_Init extends Kohana{
 				$code = 'class '.$class.' extends Socket_Instance{function __construct(){$args = func_get_args();parent::__construct("'
 						.$class.'", $args);}}';
 				eval($code);
-		}catch(Exception $ex){}
+				return true;
+		}catch(Exception $ex){
+				return false;
+		}
 	}
 }
 

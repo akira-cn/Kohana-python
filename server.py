@@ -1,11 +1,13 @@
+# coding=utf-8
+
 import sys
 import json
 import traceback
 import SocketServer
 from daemon import Daemon
 
-rpc_instances = {}; #save obj instance
-rpc_module_paths = [];
+rpc_instances = {} #save obj instance
+rpc_module_paths = [] #auto loading paths
 
 class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
     def handle(self):
@@ -17,12 +19,13 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
                     break
                 data = json.loads(data)
 
-                if('paths' in data): #only test if class exists or not
+                if('paths' in data): #set auto loading paths
                     for i in range(len(rpc_module_paths),len(data['paths'])):
                         sys.path.append(data['paths'][i] + 'classes')
                         rpc_module_paths.append(data['paths'][i])
-
-                path = map(lambda s: s.lower(), data['class'].split('_'));
+                
+                #resolve the path from class name like 'Model_Logic_Test'
+                path = map(lambda s: s.lower(), data['class'].split('_'))
                 p = __import__(".".join(path))
 
                 for i in range(len(path)):
@@ -30,19 +33,21 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
                         p = getattr(p, path[i])
 			
                 c = getattr(p, data['class'])
-		
-                if(not ('func' in data)): #only test if class exists or not
-                    res = '{"err":"ok"}'
+		        
+                #if not 'func', only to test wether the class exists or not
+                if(not ('func' in data)): #TODO: get the detail info of the class?
+                    res = '{"err":"ok", "data":true}'
 
                 else:
+                    #destroy the object instance if the php request end
                     if(data['func'] == '__destroy'):
-                        rpc_instances.pop(data['id'])
-                        res = 'item destroyed'
+                        rpc_instances.pop(data['id']) #if instance exists
+                        res = 'item destroyed'      #delete & restore
 		
                     else:
-                        if(data['id'] in rpc_instances):
+                        if(data['id'] in rpc_instances):    #the object has been created
                             o = rpc_instances[data['id']]
-                        else:
+                        else:                               #create new object instance
                             o = apply(c, data['init'])
                             rpc_instances[data['id']] = o
                         res =  getattr(o, data['func'])(data['args']) or '' #str(len(rpc_instances.keys()))
@@ -52,7 +57,7 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
                 res = ('error in ThreadedTCPRequestHandler :%s, res:%s' % (traceback.format_exc(), data))
                 res = json.dumps({'err':'sys.socket.error', 'msg':res})
             res = str(len(res)).rjust(8, '0') + res
-            self.request.send(res);
+            self.request.send(res)
 
 class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     pass
@@ -71,7 +76,7 @@ if __name__ == '__main__':
     port = 1990
     if len(sys.argv) >= 3:
         port = sys.argv[2]
-    server.conf('0.0.0.0', port)
+    server.conf('0.0.0.0', port) #change ip if you want to call remote
     if len(sys.argv) >= 2:
         if 'start' == sys.argv[1]:
             server.start()
