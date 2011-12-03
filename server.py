@@ -50,7 +50,7 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
                         else:                               #create new object instance
                             o = apply(c, data['init'])
                             rpc_instances[data['id']] = o
-                        res =  getattr(o, data['func'])(data['args']) or '' #str(len(rpc_instances.keys()))
+                        res =  apply(getattr(o, data['func']), data['args']) or '' #str(len(rpc_instances.keys()))
                         res = json.dumps({'err':'ok', 'data':str(res)})
 
             except:
