@@ -67,7 +67,7 @@ class Socket_Instance{
 		if($ret['err'] == 'sys.socket.error'){
 			throw new Socket_Exception($result);
 		}
-		return unserialize($ret['data']);	
+		return $ret['data'];	
 	}
 	
 	/**
