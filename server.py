@@ -4,6 +4,7 @@ import sys
 import json
 import traceback
 import SocketServer
+from phpdata import serialize
 from daemon import Daemon
 
 rpc_instances = {} #save obj instance
@@ -51,7 +52,7 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
                             o = apply(c, data['init'])
                             rpc_instances[data['id']] = o
                         res =  apply(getattr(o, data['func']), data['args']) or '' #str(len(rpc_instances.keys()))
-                        res = json.dumps({'err':'ok', 'data':str(res)})
+                        res = json.dumps({'err':'ok', 'data':serialize(res)})
 
             except:
                 res = ('error in ThreadedTCPRequestHandler :%s, res:%s' % (traceback.format_exc(), data))
