@@ -42,15 +42,19 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
                 else:
                     #destroy the object instance if the php request end
                     if(data['func'] == '__destroy'):
-                        rpc_instances.pop(data['id']) #if instance exists
+                        if(data['id'] in rpc_instances):
+                            rpc_instances.pop(data['id']) #if instance exists
                         res = 'item destroyed'      #delete & restore
 		
                     else:
-                        if(data['id'] in rpc_instances):    #the object has been created
-                            o = rpc_instances[data['id']]
-                        else:                               #create new object instance
-                            o = apply(c, data['init'])
-                            rpc_instances[data['id']] = o
+                        if('id' in data):  #call method
+                            if(data['id'] in rpc_instances):    #the object has been created
+                                o = rpc_instances[data['id']]
+                            else:                               #create new object instance
+                                o = apply(c, data['init'])
+                                rpc_instances[data['id']] = o
+                        else:   #call static func
+                            o = c
                         res =  apply(getattr(o, data['func']), data['args']) or '' #str(len(rpc_instances.keys()))
                         res = json.dumps({'err':'ok', 'data':serialize(res)})
 

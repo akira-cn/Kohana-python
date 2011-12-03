@@ -11,10 +11,6 @@
  */
 class Socket_Instance{
 	/**
-	 * the class of the object instance
-	 */
-	protected $_class;
-	/**
 	 * unique identifier to hold the instance
 	 */
 	protected $_id;
@@ -22,15 +18,11 @@ class Socket_Instance{
 	 * constructor arguments
 	 */
 	protected $_args; 
-	/**
-	 * socket client object
-	 */
-	protected $_client;
 	
 	/**
-	 * default socket client
+	 * socket client
 	 */
-	public static $default_client = null;
+	public static $client = null;
 	
 	/**
 	 * create a new socket instance to operate an object instance from the socket server 
@@ -39,23 +31,11 @@ class Socket_Instance{
 	 * @param	Array			$args	construct arguments
 	 * @param	Socket_Client	$client
 	 */
-	public function __construct($class, $args = array(), $client = null){
-		if(!isset(self::$default_client)){
-			if(!isset($client)){
-				$client = new Socket_Client();
-			}
-			self::$default_client = $client;
-		}
-		else if(!isset($client)){
-			$client = self::$default_client;
-		}
-
-		$this->_client = $client;
-		$this->_class = $class;
+	public function __construct($args = array()){
 		$this->_args = $args;
 		$this->_id = uniqid('i',true);
 
-		$client->instances[$this->_id] = $this;
+		self::$client->instances[$this->_id] = $this;
 	}
 	
 	/**
@@ -91,17 +71,18 @@ class Socket_Instance{
 	}
 	
 	/**
-	 * call a function from remote server
+	 * call a static function from remote server
+	 * As of PHP 5.3.0
 	 *
 	 * @param	String	$func	method name
 	 * @param	Array	$args	method arguments
 	 * @return	mixed
 	 */
-	public function __call($func, $args) {
-		return self::_rpc_call($this->_client, 
-			array('class' => $this->_class, 'init' => $this->_args, 'func' => $func, 'args' => $args, 'id' => $this->_id));
+	public static function __callStatic($func, $args){
+		return self::_rpc_call(self::$client, 
+			array('class' => self::$_class, 'func' => $func, 'args' => $args));	
 	}
-	
+
 	/**
 	 * find a class from remote server
 	 *
@@ -110,10 +91,7 @@ class Socket_Instance{
 	 * @return	boolean
 	 */
 	public static function find_class($class, $paths = array()){
-		if(!isset(self::$default_client)){
-			self::$default_client = new Socket_Client();
-		}
-		return self::_rpc_call(self::$default_client,array('class' => $class, 'paths' => $paths));	
+		return self::_rpc_call(self::$client,array('class' => $class, 'paths' => $paths));	
 	}
 
 	/**
@@ -122,9 +100,9 @@ class Socket_Instance{
 	public function __destruct(){
 		//if the client socket haven't been closed yet
 		//destroy the object instance from the server 
-		if(isset($this->_client) && isset($this->_client->instances[$this->_id])){
+		if(isset(self::$client) && isset(self::$client->instances[$this->_id])){
 			$this->__destroy();
-			unset($this->_client->instances[$this->_id]);
+			unset(self::$client->instances[$this->_id]);
 		}
 	}
 }
