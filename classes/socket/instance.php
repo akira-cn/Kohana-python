@@ -98,9 +98,11 @@ class Socket_Instance{
 		
 		$data = $ret['data'];
 		
+		//if python func returns a python object, create this object via php
 		if(is_array($data) && isset($data['@class']) && isset($data['@init']) && isset($data['@id'])){
 			$data = new Socket_Instance($data['@class'], $data['@init'], $data['@id']);
 		}
+
 		return $data;
 	}
 
@@ -113,17 +115,5 @@ class Socket_Instance{
 	 */
 	public static function find_class($class, $paths = array()){
 		return self::_rpc_call(self::$client,array('class' => $class, 'paths' => $paths));	
-	}
-
-	/**
-	 * remove the instances handled from the socket server
-	 */	
-	public function __destruct(){
-		//if the client socket haven't been closed yet
-		//destroy the object instance from the server 
-		if(isset(self::$client) && isset(self::$client->instances[$this->_id])){
-			$this->__destroy();
-			unset(self::$client->instances[$this->_id]);
-		}
 	}
 }

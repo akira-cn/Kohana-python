@@ -3,16 +3,25 @@
 import sys
 import json
 import traceback
-import SocketServer
-import uuid
+from SocketServer import BaseRequestHandler, ThreadingTCPServer
 from daemon import Daemon
+import uuid
 from types import *
+import logging
 
-rpc_instances = {} #save obj instance
-rpc_module_paths = [] #auto loading paths
+logging.basicConfig(level=logging.DEBUG,
+                    format='%(thread)d %(asctime)s %(levelname)s %(message)s',
+                    filename='log.txt',
+                    filemode='a+')
 
-class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
+class RequestHandler(BaseRequestHandler):
+    logger = logging.getLogger()
+
+    def setup(self):
+        self.logger.debug('setup')
+        self.request.settimeout(60)
     def handle(self):
+        rpc_instances = {}
         while True:
             try:
                 data = self.request.recv(2*1024*1024)
@@ -22,24 +31,21 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
                 data = json.loads(data)
 
                 if('paths' in data): #set auto loading paths
-                    for i in range(len(rpc_module_paths),len(data['paths'])):
-                        sys.path.append(data['paths'][i] + 'classes')
-                        rpc_module_paths.append(data['paths'][i])
+                    data['paths'].reverse()
+                    for i in range(len(data['paths'])):
+                        path = data['paths'][i] + 'classes'
+                        if(path not in sys.path):
+                            sys.path.insert(1, path)
                 
                 #call the object instance func - {id, func, args[class, init]}
                 if('id' in data):
-                    if(data['func'] == '__destroy'):
-                        if(data['id'] in rpc_instances):
-                            rpc_instances.pop(data['id']) #if instance exists
-                        res = True      #delete & restore
-                    else:
-                        if(data['id'] in rpc_instances):    #the object has been created
-                            o = rpc_instances[data['id']]
-                        else:                               #create new object instance
-                            c = self.find_class(data['class'])
-                            o = apply(c, data['init'])
-                            rpc_instances[data['id']] = o  
-                        res =  apply(getattr(o, data['func']), data['args']) or ''                  
+                    if(data['id'] in rpc_instances):    #the object has been created
+                        o = rpc_instances[data['id']]
+                    else:                               #create new object instance
+                        c = self.find_class(data['class'])
+                        o = apply(c, data['init'])
+                        rpc_instances[data['id']] = o  
+                    res =  apply(getattr(o, data['func']), data['args']) or ''                  
                 
                 #call class func - {class, [func, args]}
                 else:
@@ -54,15 +60,21 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
                     uid = str(uuid.uuid4())
                     rpc_instances[uid] = res
                     res = {'@id':uid, '@class':res.__class__.__name__, '@init':[]}
-
-                res = json.dumps({'err':'ok', 'data':res})  #+ str(len(rpc_instances.keys())) 
-
+                
+                res = json.dumps({'err':'ok', 'data':res}) #+ str(len(rpc_instances.keys()))
             except:
-                res = ('error in ThreadedTCPRequestHandler :%s, res:%s' % (traceback.format_exc(), data))
-                res = json.dumps({'err':'sys.socket.error', 'msg':res}) 
+                res = ('error in RequestHandler :%s, res:%s' % (traceback.format_exc(), data))
+                res = json.dumps({'err':'sys.socket.error', 'msg':res})
+                self.logger.debug(res)
+                res = str(len(res)).rjust(8, '0') + res 
+                self.request.send(res)
+                self.request.close()
+                break
             res = str(len(res)).rjust(8, '0') + res 
             self.request.send(res)
-
+    def finish(self):
+        self.logger.debug('finish')
+        self.request.close()
     def find_class(self, class_name):
         #resolve the path from class name like 'Model_Logic_Test'
         path = map(lambda s: s.lower(), class_name.split('_'))
@@ -74,16 +86,13 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
     
         return getattr(p, class_name)
 
-class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
-    pass
-
 class Server(Daemon):        
     def conf(self, host, port):
         self.host = host
         self.port = port
-        ThreadedTCPServer.allow_reuse_address = True
+        ThreadingTCPServer.allow_reuse_address = True
     def run(self):
-        server = ThreadedTCPServer((self.host, self.port), ThreadedTCPRequestHandler)
+        server = ThreadingTCPServer((self.host, self.port), RequestHandler)
         server.serve_forever()
 
 if __name__ == '__main__':

@@ -76,15 +76,9 @@ class Socket_Client{
 	 * remove the instances handled from the socket server
 	 */
 	public function __destruct() {
-		//destroy all object instances which haven't destroied from the server
-		//because the framework doesn't know client or instances which will be destruct first
-		foreach($this->instances as $key => $instance){
-			$instance->__destroy();
-			unset($this->instances[$key]);
-		}
 		$socket = $this->_socket;
-		socket_write($socket, '', 0);
-		socket_close($socket);
+		//socket_write($socket, '', 0);
+		//socket_close($socket);
 	}
 	
 	/**

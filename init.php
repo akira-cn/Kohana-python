@@ -1,6 +1,6 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 
-Socket_Instance::$client = new Socket_Client();
+Socket_Instance::$client = new Socket_Client('127.0.0.1', 1990);
 
 class Python_Env_Init extends Kohana{
 	/**
