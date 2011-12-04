@@ -5,24 +5,7 @@ class Socket_Test extends Socket_Instance{
 
 	public function __construct(){
 		$args = func_get_args();
-		parent::__construct($args);
-	}
-	
-	/**
-	 * call a function from remote server
-	 *
-	 * @param	String	$func	method name
-	 * @param	Array	$args	method arguments
-	 * @return	mixed
-	 */
-	public function __call($func, $args){
-		return self::_rpc_call(self::$client, 
-			array(	"class" => self::$_class, 
-					"init" => $this->_args, 
-					"func" => $func, 
-					"args" => $args, 
-					"id" => $this->_id)
-		);													
+		parent::__construct(self::$_class, $args);
 	}
 
 	/**

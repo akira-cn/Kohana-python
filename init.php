@@ -15,16 +15,7 @@ class Python_Env_Init extends Kohana{
 							protected static $_class="'.$class.'";
 							function __construct(){
 								$args = func_get_args();
-								parent::__construct($args);
-							}
-							function __call($func, $args){
-								return self::_rpc_call(self::$client, 
-									array(	"class" => self::$_class, 
-											"init" => $this->_args, 
-											"func" => $func, 
-											"args" => $args, 
-											"id" => $this->_id)
-								);													
+								parent::__construct(self::$_class,$args);
 							}
 							static function __callStatic($func, $args){
 								return self::_rpc_call(self::$client, 

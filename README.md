@@ -16,28 +16,20 @@
 
      import sys
 
-     class Sample_Basic_Test:
+     class Model_Logic_Sample:
          def __init__(self, name):
              self.name = name;
-         def greet (self, greet):
-             return greet + ' ' + self.name;
-         def add (self, x, y):
-             return x + y;
-         def ok (self):
-             return {'err':'ok'};
-         def arr (self):
-             return [1,2,3,4];
-
-         @classmethod
-         def greet_static(cls):
-             return "Hello World";
+         def test (self):
+             return self.name;
+         def test2 (self):
+             return 'test';
 
 ### Use it in your Controller like Normal PHP Class
 
-     class Controller_Foo extends Controller{
-         public function action_bar(){
-             $obj = new Sample_Basic_Test("john");
-             echo $obj->greet("Hello");
+     class Controller_My extends Controller{
+         public function action_foo(){
+             $obj = new Model_Logic_Sample("john");
+             echo $obj->test();
              exit;
          }
      }

@@ -4,7 +4,9 @@ import sys
 import json
 import traceback
 import SocketServer
+import uuid
 from daemon import Daemon
+from types import *
 
 rpc_instances = {} #save obj instance
 rpc_module_paths = [] #auto loading paths
@@ -24,44 +26,53 @@ class ThreadedTCPRequestHandler(SocketServer.BaseRequestHandler):
                         sys.path.append(data['paths'][i] + 'classes')
                         rpc_module_paths.append(data['paths'][i])
                 
-                #resolve the path from class name like 'Model_Logic_Test'
-                path = map(lambda s: s.lower(), data['class'].split('_'))
-                p = __import__(".".join(path))
-
-                for i in range(len(path)):
-                    if(i > 0):
-                        p = getattr(p, path[i])
-			
-                c = getattr(p, data['class'])
-		        
-                #if not 'func', only to test wether the class exists or not
-                if(not ('func' in data)): #TODO: get the detail info of the class?
-                    res = '{"err":"ok", "data":true}'
-
-                else:
-                    #destroy the object instance if the php request end
+                #call the object instance func - {id, func, args[class, init]}
+                if('id' in data):
                     if(data['func'] == '__destroy'):
                         if(data['id'] in rpc_instances):
                             rpc_instances.pop(data['id']) #if instance exists
-                        res = 'item destroyed'      #delete & restore
-		
+                        res = True      #delete & restore
                     else:
-                        if('id' in data):  #call method
-                            if(data['id'] in rpc_instances):    #the object has been created
-                                o = rpc_instances[data['id']]
-                            else:                               #create new object instance
-                                o = apply(c, data['init'])
-                                rpc_instances[data['id']] = o
-                        else:   #call static func
-                            o = c
-                        res =  apply(getattr(o, data['func']), data['args']) or '' #str(len(rpc_instances.keys()))
-                        res = json.dumps({'err':'ok', 'data':res})
+                        if(data['id'] in rpc_instances):    #the object has been created
+                            o = rpc_instances[data['id']]
+                        else:                               #create new object instance
+                            c = self.find_class(data['class'])
+                            o = apply(c, data['init'])
+                            rpc_instances[data['id']] = o  
+                        res =  apply(getattr(o, data['func']), data['args']) or ''                  
+                
+                #call class func - {class, [func, args]}
+                else:
+                    c = self.find_class(data['class'])
+                    #if not 'func', only to test wether the class exists or not
+                    if(not ('func' in data)): #TODO: get the detail info of the class?
+                        res = True
+                    else:
+                        res = apply(getattr(c, data['func']), data['args']) or ''
+                
+                if(type(res) is InstanceType):
+                    uid = str(uuid.uuid4())
+                    rpc_instances[uid] = res
+                    res = {'@id':uid, '@class':res.__class__.__name__, '@init':[]}
+
+                res = json.dumps({'err':'ok', 'data':res})  #+ str(len(rpc_instances.keys())) 
 
             except:
                 res = ('error in ThreadedTCPRequestHandler :%s, res:%s' % (traceback.format_exc(), data))
-                res = json.dumps({'err':'sys.socket.error', 'msg':res})
-            res = str(len(res)).rjust(8, '0') + res
+                res = json.dumps({'err':'sys.socket.error', 'msg':res}) 
+            res = str(len(res)).rjust(8, '0') + res 
             self.request.send(res)
+
+    def find_class(self, class_name):
+        #resolve the path from class name like 'Model_Logic_Test'
+        path = map(lambda s: s.lower(), class_name.split('_'))
+        p = __import__(".".join(path))
+
+        for i in range(len(path)):
+            if(i > 0):
+                p = getattr(p, path[i])
+    
+        return getattr(p, class_name)
 
 class ThreadedTCPServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     pass

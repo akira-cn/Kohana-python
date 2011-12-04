@@ -14,6 +14,11 @@ class Socket_Instance{
 	 * unique identifier to hold the instance
 	 */
 	protected $_id;
+
+	/**
+	 * constructor
+	 */
+	protected $_constructor;
 	/**
 	 * constructor arguments
 	 */
@@ -31,11 +36,33 @@ class Socket_Instance{
 	 * @param	Array			$args	construct arguments
 	 * @param	Socket_Client	$client
 	 */
-	public function __construct($args = array()){
+	public function __construct($class, $args = array(), $id = null){
+		if(!isset($id)){
+			$id = uniqid('i',true);
+		}
+		$this->_constructor = $class;
 		$this->_args = $args;
-		$this->_id = uniqid('i',true);
+		$this->_id = $id;
 
 		self::$client->instances[$this->_id] = $this;
+	}
+	
+	/**
+	 * call a function from remote server
+	 *
+	 * @param	String	$func	method name
+	 * @param	Array	$args	method arguments
+	 * @return	mixed
+	 */
+	public function __call($func, $args){
+		return self::_rpc_call(self::$client, 
+			array(	
+					"class"		=> $this->_constructor, 
+					"init"		=> $this->_args, 
+					"func"		=> $func, 
+					"args"		=> $args, 
+					"id"		=> $this->_id)
+		);													
 	}
 	
 	/**
@@ -62,25 +89,19 @@ class Socket_Instance{
 				break;
 			}
 		}
+
 		$ret = json_decode($result, true);
 
 		if($ret['err'] == 'sys.socket.error'){
 			throw new Socket_Exception($result);
 		}
-		return $ret['data'];	
-	}
-	
-	/**
-	 * call a static function from remote server
-	 * As of PHP 5.3.0
-	 *
-	 * @param	String	$func	method name
-	 * @param	Array	$args	method arguments
-	 * @return	mixed
-	 */
-	public static function __callStatic($func, $args){
-		return self::_rpc_call(self::$client, 
-			array('class' => self::$_class, 'func' => $func, 'args' => $args));	
+		
+		$data = $ret['data'];
+		
+		if(is_array($data) && isset($data['@class']) && isset($data['@init']) && isset($data['@id'])){
+			$data = new Socket_Instance($data['@class'], $data['@init'], $data['@id']);
+		}
+		return $data;
 	}
 
 	/**
