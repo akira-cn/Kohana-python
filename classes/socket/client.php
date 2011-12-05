@@ -77,8 +77,8 @@ class Socket_Client{
 	 */
 	public function __destruct() {
 		$socket = $this->_socket;
-		//socket_write($socket, '', 0);
-		//socket_close($socket);
+		socket_write($socket, '', 0);
+		socket_close($socket);
 	}
 	
 	/**

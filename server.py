@@ -3,22 +3,20 @@
 import sys
 import json
 import traceback
+import socket
 from SocketServer import BaseRequestHandler, ThreadingTCPServer
 from daemon import Daemon
 import uuid
 from types import *
-import logging
+from logger import logger
 
-logging.basicConfig(level=logging.DEBUG,
-                    format='%(thread)d %(asctime)s %(levelname)s %(message)s',
-                    filename='log.txt',
-                    filemode='a+')
+sys.path.insert(0, "lib/lib64/python2.6/site-packages/") #set local libpath
+
+logger = logger().instance()
 
 class RequestHandler(BaseRequestHandler):
-    logger = logging.getLogger()
-
     def setup(self):
-        self.logger.debug('setup')
+        logger.debug('setup')
         self.request.settimeout(60)
     def handle(self):
         rpc_instances = {}
@@ -62,18 +60,24 @@ class RequestHandler(BaseRequestHandler):
                     res = {'@id':uid, '@class':res.__class__.__name__, '@init':[]}
                 
                 res = json.dumps({'err':'ok', 'data':res}) #+ str(len(rpc_instances.keys()))
-            except:
+                res = str(len(res)).rjust(8, '0') + res 
+                self.request.send(res)
+            except socket.timeout as err:
                 res = ('error in RequestHandler :%s, res:%s' % (traceback.format_exc(), data))
-                res = json.dumps({'err':'sys.socket.error', 'msg':res})
-                self.logger.debug(res)
+                logger.debug(res)
+                res = json.dumps({'err':'sys.socket.error', 'msg':format(err)})
                 res = str(len(res)).rjust(8, '0') + res 
                 self.request.send(res)
                 self.request.close()
                 break
-            res = str(len(res)).rjust(8, '0') + res 
-            self.request.send(res)
+            except Exception as err:
+                res = ('error in RequestHandler :%s, res:%s' % (traceback.format_exc(), data))
+                logger.debug(res)
+                res = json.dumps({'err':'sys.socket.error', 'msg': format(err)})
+                res = str(len(res)).rjust(8, '0') + res 
+                self.request.send(res)
     def finish(self):
-        self.logger.debug('finish')
+        logger.debug('finish')
         self.request.close()
     def find_class(self, class_name):
         #resolve the path from class name like 'Model_Logic_Test'

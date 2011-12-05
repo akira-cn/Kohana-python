@@ -8,7 +8,7 @@ class Python_Env_Init extends Kohana{
 	 */
 	public static function auto_load($class){
 		try{
-				Socket_Instance::find_class($class, self::$_paths);
+				$data = Socket_Instance::find_class($class, self::$_paths);
 				$code = 
 					'class '.$class.' extends Socket_Instance
 						{

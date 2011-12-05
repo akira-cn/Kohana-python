@@ -91,7 +91,7 @@ class Socket_Instance{
 		}
 
 		$ret = json_decode($result, true);
-
+		
 		if($ret['err'] == 'sys.socket.error'){
 			throw new Socket_Exception($result);
 		}
