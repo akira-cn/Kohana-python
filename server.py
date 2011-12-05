@@ -10,9 +10,6 @@ import uuid
 from types import *
 from logger import logger
 
-import select
-import threading
-
 logger = logger().instance()
 
 class RequestHandler(BaseRequestHandler):
@@ -90,41 +87,13 @@ class RequestHandler(BaseRequestHandler):
     
         return getattr(p, class_name)
 
-class EPollTCPServer(ThreadingTCPServer):
-    def serve_forever(self, poll_interval=0.5):
-        """Handle one request at a time until shutdown.
-
-        Polls for shutdown every poll_interval seconds. Ignores
-        self.timeout. If you need to do periodic tasks, do them in
-        another thread.
-        """
-        self._BaseServer__serving = True
-        self._BaseServer__is_shut_down.clear()
-
-        epoll = select.epoll()
-        epoll.register(self.fileno(), select.EPOLLIN | select.EPOLLET)
-        
-        try:
-            while self._BaseServer__serving:
-                events = epoll.poll(poll_interval)
-                for fileno, event in events:
-                    if fileno == self.fileno():
-                        try:
-                            self._handle_request_noblock()
-                        except socket.error:
-                            return
-        finally:
-            epoll.unregister(self.fileno())
-            epoll.close()
-            self._BaseServer__is_shut_down.set()
-
 class Server(Daemon):        
     def conf(self, host, port):
         self.host = host
         self.port = port
-        EPollTCPServer.allow_reuse_address = True
+        ThreadingTCPServer.allow_reuse_address = True
     def run(self):
-        server = EPollTCPServer((self.host, self.port), RequestHandler)
+        server = ThreadingTCPServer((self.host, self.port), RequestHandler)
         try:
             server.serve_forever()
         except Exception as err:

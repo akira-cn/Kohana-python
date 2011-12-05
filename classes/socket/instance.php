@@ -75,25 +75,27 @@ class Socket_Instance{
 	protected static function _rpc_call($client, $data){
 		$data = json_encode($data);
 		$socket = $client->socket();
+
 		$res = socket_write($socket, $data, strlen($data));
+
 		if($res===false){
 			return $client->_error('error socket_write'.socket_strerror(socket_last_error()));
 		}
 		$res = socket_read($socket, 1024, PHP_BINARY_READ);
-		$result = substr($res, 8);
-		$len = intval(substr($res, 0, 8));
-		while(true){
-			if($len != strlen($result)) {
-				$result .= socket_read($socket, 1024, PHP_BINARY_READ);
-			}else{
-				break;
-			}
+		$size = intval(substr($res, 0, 8));
+		while($size + 8 > strlen($res)){
+			$res .= socket_read($socket, 1024, PHP_BINARY_READ);
 		}
+		while($size + 8 < strlen($res)){
+			$res = substr($res, $size + 8);
+			$size = intval(substr($res, 0, 8));
+		}
+		$res = substr($res, 8, $size);
 
-		$ret = json_decode($result, true);
+		$ret = json_decode($res, true);
 		
 		if($ret['err'] == 'sys.socket.error'){
-			throw new Socket_Exception($result);
+			throw new Socket_Exception($res);
 		}
 		
 		$data = $ret['data'];
