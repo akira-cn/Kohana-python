@@ -10,7 +10,8 @@ import uuid
 from types import *
 from logger import logger
 
-sys.path.insert(0, "lib/lib64/python2.6/site-packages/") #set local libpath
+import select
+import threading
 
 logger = logger().instance()
 
@@ -24,8 +25,7 @@ class RequestHandler(BaseRequestHandler):
             try:
                 data = self.request.recv(2*1024*1024)
                 if not data:
-                    print('end')
-                    break
+                    break  #end
                 data = json.loads(data)
 
                 if('paths' in data): #set auto loading paths
@@ -90,15 +90,47 @@ class RequestHandler(BaseRequestHandler):
     
         return getattr(p, class_name)
 
+class EPollTCPServer(ThreadingTCPServer):
+    __is_shut_down = threading.Event()
+    def serve_forever(self, poll_interval=0.5):
+        """Handle one request at a time until shutdown.
+
+        Polls for shutdown every poll_interval seconds. Ignores
+        self.timeout. If you need to do periodic tasks, do them in
+        another thread.
+        """
+        self.__serving = True
+        self.__is_shut_down.clear()
+
+        epoll = select.epoll()
+        epoll.register(self.fileno(), select.EPOLLIN | select.EPOLLET)
+        
+        try:
+            while self.__serving:
+                events = epoll.poll(poll_interval)
+                for fileno, event in events:
+                    if fileno == self.fileno():
+                        try:
+                            self._handle_request_noblock()
+                        except socket.error:
+                            return
+        finally:
+            epoll.unregister(self.fileno())
+            epoll.close()
+            self.__is_shut_down.set()
+
 class Server(Daemon):        
     def conf(self, host, port):
         self.host = host
         self.port = port
-        ThreadingTCPServer.allow_reuse_address = True
+        EPollTCPServer.allow_reuse_address = True
     def run(self):
-        server = ThreadingTCPServer((self.host, self.port), RequestHandler)
-        server.serve_forever()
-
+        server = EPollTCPServer((self.host, self.port), RequestHandler)
+        try:
+            server.serve_forever()
+        except Exception as err:
+            logger.debug(traceback.format_exc())
+    
 if __name__ == '__main__':
     server = Server('/tmp/daemon-tortoise.pid')
     port = 1990

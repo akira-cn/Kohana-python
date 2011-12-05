@@ -4,7 +4,7 @@ Socket_Instance::$client = new Socket_Client('127.0.0.1', 1990);
 
 class Python_Env_Init extends Kohana{
 	/**
-	 * add auto_load to create php local classes associate to remove python classes
+	 * add auto_load to create php local classes associate to remote python classes
 	 */
 	public static function auto_load($class){
 		try{
