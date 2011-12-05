@@ -91,7 +91,6 @@ class RequestHandler(BaseRequestHandler):
         return getattr(p, class_name)
 
 class EPollTCPServer(ThreadingTCPServer):
-    __is_shut_down = threading.Event()
     def serve_forever(self, poll_interval=0.5):
         """Handle one request at a time until shutdown.
 
@@ -99,14 +98,14 @@ class EPollTCPServer(ThreadingTCPServer):
         self.timeout. If you need to do periodic tasks, do them in
         another thread.
         """
-        self.__serving = True
-        self.__is_shut_down.clear()
+        self._BaseServer__serving = True
+        self._BaseServer__is_shut_down.clear()
 
         epoll = select.epoll()
         epoll.register(self.fileno(), select.EPOLLIN | select.EPOLLET)
         
         try:
-            while self.__serving:
+            while self._BaseServer__serving:
                 events = epoll.poll(poll_interval)
                 for fileno, event in events:
                     if fileno == self.fileno():
@@ -117,7 +116,7 @@ class EPollTCPServer(ThreadingTCPServer):
         finally:
             epoll.unregister(self.fileno())
             epoll.close()
-            self.__is_shut_down.set()
+            self._BaseServer__is_shut_down.set()
 
 class Server(Daemon):        
     def conf(self, host, port):
