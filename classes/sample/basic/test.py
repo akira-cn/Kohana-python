@@ -9,7 +9,7 @@ class Sample_Basic_Test:
     def add (self, x, y):
         return x + y;
     def ok (self):
-        return {'err':'ok', 'msg':unicode("测试", "gbk")};
+        return {'err':'ok', 'msg':unicode("测试", "utf-8")};
     def arr (self):
         return [1,2,3,4];
 
