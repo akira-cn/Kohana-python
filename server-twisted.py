@@ -65,7 +65,7 @@ class Server(Daemon):
     def run(self):
         try:
             logger.debug('run')
-            factory = PHPRequestFactory(1)
+            factory = PHPRequestFactory(60)
             reactor.listenTCP(self.port, factory)
             reactor.run()
         except:
